@@ -2,15 +2,17 @@
 library("tidyverse")
 library("vegan")
 library("fossil")
-library("ggmap")
+library("ggmap") 
 library("ggplot2")
-
+library("readr")
 
 #2. Load in Aves tsv----
 
 #read in the aves data frame from BOLD
-df_a <- read_tsv('"http://www.boldsystems.org/index.php/API_Public/combined?taxon=Aves&format=tsv')
-
+#Changing qoutations so data can be loaded. 
+df_a <- read_tsv("http://www.boldsystems.org/index.php/API_Public/combined?taxon=Aves&format=tsv")
+#Writing Aves_BOLD_data so we dont have to download data everytime we open this project.
+write_tsv(df_a, "Aves_BOLD_data.tsv")
 
 #3.Number of samples based on latitude----
 
@@ -52,6 +54,36 @@ map_aves <- ggmap(get_googlemap(center = c(lon = 0, lat = 40), zoom = 1, maptype
   ) 
 
 print(map_aves)
+
+# Calculating summary statistics for latitude in df_a_map
+summary_stats <- df_a_map %>%
+  summarise(
+    Mean_Latitude = mean(lat, na.rm = TRUE),
+    Median_Latitude = median(lat, na.rm = TRUE),
+    Min_Latitude = min(lat, na.rm = TRUE),
+    Max_Latitude = max(lat, na.rm = TRUE)
+  )
+
+# Printing summary statistics
+print(summary_stats)
+
+#Introducing spatial distribution plot using the sf package and ggplot2 to offer a more detailed and insightful representation of sampling efforts across latitudinal bands. 
+library(sf)
+# Convert df_a_map to sf object for spatial plotting
+df_a_sf <- st_as_sf(df_a_map, coords = c("lon", "lat"), crs = 4326)
+
+# Create a spatial distribution plot
+sampling_map <- ggplot() +
+  geom_sf(data = df_a_sf, color = "blue", size = 0.1) +
+  theme_minimal() +
+  labs(
+    title = 'Spatial Distribution of Aves Sampling Efforts',
+    x = 'Longitude',
+    y = 'Latitude'
+  )
+print(sampling_map)
+
+
 
 #5.Function that estimates species richness using vegan and taxonomic identification   ----
 
@@ -167,20 +199,29 @@ species_richness_aves <- c(chao1_namef_015, name_vegan_015,chao1f_015,bin_vegan_
 #creating the data frame
 df_aves_species_richness_calculations <- data.frame(latitude, calculation_groups, species_richness_aves)
 #creating a bar plot to visualize the results across the calculations. I am using ggplot to create a grouped bar char of my data so that I can visualize each species richness estimate at each of the latitudinal bands. I am ensuring the bar plot colours are colour blind friendly by using 'Dark2' palette.
-aves_plot <- df_aves_species_richness_calculations %>%
-  ggplot(aes(x = latitudes, y = species_richness_aves, fill = calculation_groups))+
-  geom_bar(stat = 'identity', position = position_dodge(width = 0.8), width = 0.7)+
+
+#Correcting Variable spelling mistakes and Improving bar plot aesthetics for better visualization
+aves_plot_new <- df_aves_species_richness_calculations %>%
+  ggplot(aes(x = latitude, y = species_richness_aves, fill = calculation_groups)) +
+  geom_bar(stat = 'identity', position = 'dodge', width = 0.7, color = 'black') +
   labs(
-    title = 'Species Richness Estimates of Aves and Latitude',
+    title = 'Species Richness Estimates of Aves Across Latitudes',
     x = 'Latitudes',
     y = 'Species Richness Estimates',
-    fill = 'Calculations') +
-  scale_fill_brewer(palette = 'Dark2') +
+    fill = 'Calculations'
+  ) +
+  
+  scale_fill_brewer(palette = 'Set1') +  # Using a different color palette
   theme_minimal() +
   theme(
-    legend.key.size = unit(0.5, 'cm'),
-    legend.text = element_text(size = 9)) +
+    legend.position = 'top',
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  ) +
   coord_flip()
 
-aves_plot
-  
+print(aves_plot_new)
+
